@@ -1,0 +1,155 @@
+---
+- name: Установка RuBackup
+  hosts: deploy
+  tasks:
+    - name: Подготавливаем машину
+      block:
+        - name: Изменяем /etc/hostname
+          ansible.builtin.replace:
+          path: /etc/hosts
+          regexp: '(\s+)localhost\.localdomain(\s+.*)?$'
+          replace: '\1rubackup\2'
+        - name: Изменяем /etc/hosts
+          ansible.builtin.lineinfile:
+            path: /etc/hosts
+            regexp: '^127\.0\.0\.1'
+            line:  192.168.227 rubackup
+        - name: reboot чтобы поменялся hostname
+          reboot:
+        - name: Установка всех пакетов, и клиента и сервера
+          ansible.builtin.apt:
+            pkg:
+            - pigz
+            - xz-utils
+            - nfs-client
+            - mailutils
+            - libcurl4
+            - nfs-kernel-server
+            - nfs-common
+            - postresql
+            - postresql-contrib
+            - dpkg
+            state: latest
+            update_cache: yes
+        - name: Облновляем все пакеты
+          ansible.builtin.apt:
+            name: "*"
+            state: latest
+        - name: Добавляем необходимые строки в .bashrc
+          ansible.builtin.blockinfile:
+            path: /root/.bashrc
+            block: |
+              PATH=$PATH:/opt/rubackup/bin
+              LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/opt/rubackup/lib
+              export PATH
+              export LD_LIBRARY_PATH
+            backup: yes
+        - name: Перезагружаем .bashrc
+          command: source .bashrc
+
+    - name: Установка RuBackup 
+      block:
+        - name: Скачиваем rubackup-common.deb 
+          ansible.builtin.get_url:
+            url: https://github.com/takizavajr/Practice/raw/main/RuBackup/rubackup-common.deb
+            dest: /home/rbckuser/Downloads/rubackup-common.deb
+        - name: Устанавливаем скаченный rubackup-common.deb
+          ansible.builtin.apt:
+            deb: /home/rbckuser/Downloads/rubackup-common.deb
+        - name: Скачиваем rubackup-client.deb 
+          ansible.builtin.get_url:
+            url: https://github.com/takizavajr/Practice/raw/main/RuBackup/rubackup-client.deb
+            dest: /home/rbckuser/Downloads/rubackup-client.deb
+        - name: Устанавливаем скаченные rubackup-client.deb
+          ansible.builtin.apt:
+            deb: /home/rbckuser/Downloads/rubackup-client.deb
+        - name: Добавляем возможность подключения в СУБД всех серверов из группы rubackup
+          postgresql_pg_hba:
+            dest: /etc/postgresql/12/main/pg_hba.conf
+            contype: host
+            databases: all
+            method: md5
+            users: all
+            create: true
+          become_user: postgres
+        - name: Узнаём версию postgresql
+          become_user: postgres
+          community.postgresql.postgresql_info:
+            filter: ver*
+          register: postgresql_version  
+
+        - name: Настраиваем listen_addresses
+          ansible.builtin.lineinfile:
+            path: /etc/postgresql/12/main/postgresql.conf
+            regexp: "^listen_addresses =" 
+            line: "listen_addresses = '*'" 
+            state: present
+
+        - name: Перезагружаем СУБД чтобы изменения вступили в силу
+          ansible.builtin.service:
+            name: postgresql
+            state: restarted
+        - name: Создаём пользователя для Базы Данных
+          postgresql_user:
+                name: postgres
+                password: 12345
+          become_user: postgres 
+        - name: Перезапускаем сервис postgresql
+          ansible.builtin.service:
+            name: postgresql
+            state: restarted
+
+
+        - name: Скачиваем rubackup-server.deb
+          ansible.builtin.get_url:
+            url: https://github.com/takizavajr/Practice/raw/main/RuBackup/rubackup-server.deb
+            dest: /home/rbckuser/Downloads/rubackup-server.deb
+        - name: Устанавливаем скаченный rubackup-server.deb
+          ansible.builtin.apt:
+            deb: /home/rbckuser/Downloads/rubackup-server.deb
+
+        - name: Скачиваем rubackup-rpm.deb
+          ansible.builtin.get_url:
+            url: https://github.com/takizavajr/Practice/raw/main/RuBackup/rubackup-rbm.deb
+            dest: /home/rbckuser/Downloads/rubackup-rbm.deb
+        - name: Устанавливаем скаченный rubackup-rbm.deb
+          ansible.builtin.apt:
+            deb: /home/rbckuser/Downloads/rubackup-rbm.deb
+
+    - name: Пост-установочные действия
+      block:
+        - name: Добавляем пользователя в группу rubackup созданную rb_init
+          ansible.builtin.user: 
+            name: rbckuser
+            group: rubackup
+        - name: Добавляем для пользователя rbckuser переменные среды
+          ansible.builtin.blockinfile:
+            path: /home/rbckuser/.bashrc
+            block: |
+              PATH=$PATH:/opt/rubackup/bin
+              LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/opt/rubackup/lib
+              export PATH
+              export LD_LIBRARY_PATH
+            backup: yes
+        - name: Перезагружаем .bashrc
+          command: source .bashrc
+
+        - name: Включаем сервис клиента rubackup
+          ansible.builtin.systemd:
+            name: /opt/rubackup/etc/systemd/system/rubackup_client.service
+            enabled: yes
+        - name: Включаем сервис сервера rubackup
+          ansible.builtin.systemd:
+            name: /opt/rubackup/etc/systemd/system/rubackup_server.service
+            enabled: yes
+        - name: Перезагружаем systemctl
+          ansible.builtin.systemd:
+            daemon_reload: yes
+        - name: Запускаем сервис клиента rubackup
+          ansible.builtin.systemd:
+            name: rubackup_client
+            state: started
+        - name: Включаем сервис сервера rubackup
+          ansible.builtin.systemd:
+            name: rubackup_server
+            state: started
