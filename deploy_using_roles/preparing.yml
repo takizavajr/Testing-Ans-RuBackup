@@ -1,0 +1,5 @@
+---
+- name: preparing pc for RuBackup installing
+  hosts: deploy
+  roles:
+    - preparing

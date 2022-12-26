@@ -1,0 +1,5 @@
+---
+- name: post installing RuBackup
+  hosts: deploy
+  roles:
+    - rubackup

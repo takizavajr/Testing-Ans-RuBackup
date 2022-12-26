@@ -1,0 +1,7 @@
+---
+- name: full deploy RuBackup
+  hosts: deploy
+  roles:
+    - preparing
+    - rubackup
+    - post_install

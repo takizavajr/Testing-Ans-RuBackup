@@ -1,0 +1,5 @@
+---
+- name: post install actions
+  hosts: deploy
+  roles:
+    - post_install

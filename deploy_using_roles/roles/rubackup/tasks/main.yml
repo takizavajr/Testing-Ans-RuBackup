@@ -1,0 +1,73 @@
+---
+- name: Скачиваем rubackup-common.deb 
+  ansible.builtin.get_url:
+    url: "{{ commom_url }}"
+    dest: "{{ dommon_dest }}"
+- name: Устанавливаем скаченный rubackup-common.deb
+  ansible.builtin.apt:
+    deb: "{{ common_dest }}"
+
+- name: Скачиваем rubackup-client.deb 
+  ansible.builtin.get_url:
+    url: "{{ client_url }}"
+    dest: "{{ client_dest }}"
+- name: Устанавливаем скаченные rubackup-client.deb
+  ansible.builtin.apt:
+    deb: "{{ client_dest }}"
+
+
+- name: Добавляем возможность подключения в СУБД всех серверов из группы rubackup
+  postgresql_pg_hba:
+    dest: "{{ hba_dest }}"
+    contype: host
+    databases: all
+    method: md5
+    users: all
+    create: true
+  become_user: postgres
+
+- name: Узнаём версию postgresql
+  become_user: postgres
+  community.postgresql.postgresql_info:
+    filter: ver*
+  register: postgresql_version  
+
+- name: Настраиваем listen_addresses
+  ansible.builtin.lineinfile:
+    path: "{{ listen_dest }}"
+    regexp: "^listen_addresses =" 
+    line: "listen_addresses = '*'" 
+    state: present
+
+- name: Перезагружаем СУБД чтобы изменения вступили в силу
+  ansible.builtin.service:
+    name: postgresql
+    state: restarted
+
+- name: Создаём пользователя для Базы Данных
+  postgresql_user:
+        name: postgres
+        password: 12345
+  become_user: postgres
+  
+- name: Перезапускаем сервис postgresql
+  ansible.builtin.service:
+    name: postgresql
+    state: restarted
+
+
+- name: Скачиваем rubackup-server.deb
+  ansible.builtin.get_url:
+    url: "{{ server_url }}"
+    dest: "{{ server_dest }}"
+- name: Устанавливаем скаченный rubackup-server.deb
+  ansible.builtin.apt:
+    deb: "{{ server_dest }}"
+
+- name: Скачиваем rubackup-rpm.deb
+  ansible.builtin.get_url:
+    url: "{{ rbm_url }}"
+    dest: "{{ rbm.dest }}"
+- name: Устанавливаем скаченный rubackup-rbm.deb
+  ansible.builtin.apt:
+    deb: "{{ rbm.dest }}"

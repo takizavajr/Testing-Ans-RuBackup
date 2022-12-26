@@ -1,0 +1,44 @@
+---
+- name: Изменяем /etc/hostname
+  ansible.builtin.replace:
+  path: /etc/hosts
+  regexp: '(\s+)localhost\.localdomain(\s+.*)?$'
+  replace: '\1rubackup\2'
+- name: Изменяем /etc/hosts
+  ansible.builtin.lineinfile:
+    path: /etc/hosts
+    regexp: '^127\.0\.0\.1'
+    line:  192.168.227 rubackup
+- name: reboot чтобы поменялся hostname
+  reboot:
+- name: Установка всех пакетов, и клиента и сервера
+  ansible.builtin.apt:
+    name: "{{ item }}"
+    state: latest
+    update_cache: yes
+  loop:
+    - pigz
+    - xz-utils
+    - nfs-client
+    - mailutils
+    - libcurl4
+    - nfs-kernel-server
+    - nfs-common
+    - postresql
+    - postresql-contrib
+    - dpkg
+- name: Облновляем все пакеты
+  ansible.builtin.apt:
+    name: "*"
+    state: latest
+- name: Добавляем необходимые строки в .bashrc
+  ansible.builtin.blockinfile:
+    path: /root/.bashrc
+    block: |
+      PATH=$PATH:/opt/rubackup/bin
+      LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/opt/rubackup/lib
+      export PATH
+      export LD_LIBRARY_PATH
+    backup: yes
+- name: Перезагружаем .bashrc
+  command: source .bashrc

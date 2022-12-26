@@ -1,0 +1,36 @@
+---
+- name: Добавляем пользователя в группу rubackup созданную rb_init
+  ansible.builtin.user: 
+    name: rbckuser
+    group: rubackup
+- name: Добавляем для пользователя rbckuser переменные среды
+  ansible.builtin.blockinfile:
+    path: /home/rbckuser/.bashrc
+    block: |
+      PATH=$PATH:/opt/rubackup/bin
+      LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/opt/rubackup/lib
+      export PATH
+      export LD_LIBRARY_PATH
+    backup: yes
+- name: Перезагружаем .bashrc
+  command: source .bashrc
+
+- name: Включаем сервис клиента rubackup
+  ansible.builtin.systemd:
+    name: "{{ client_service }}"
+    enabled: yes
+- name: Включаем сервис сервера rubackup
+  ansible.builtin.systemd:
+    name: "{{ server_service }}"
+    enabled: yes
+- name: Перезагружаем systemctl
+  ansible.builtin.systemd:
+    daemon_reload: yes
+- name: Запускаем сервис клиента rubackup
+  ansible.builtin.systemd:
+    name: rubackup_client
+    state: started
+- name: Включаем сервис сервера rubackup
+  ansible.builtin.systemd:
+    name: rubackup_server
+    state: started

@@ -1,0 +1,10 @@
+common_url: https://github.com/takizavajr/Practice/raw/main/RuBackup/rubackup-common.deb
+client_url: https://github.com/takizavajr/Practice/raw/main/RuBackup/rubackup-client.deb
+server_url: https://github.com/takizavajr/Practice/raw/main/RuBackup/rubackup-server.deb
+rbm_url: https://github.com/takizavajr/Practice/raw/main/RuBackup/rubackup-rbm.deb
+sommon_dest: /home/rbckuser/Downloads/rubackup-common.deb
+client_dest: /home/rbckuser/Downloads/rubackup-client.deb
+server_dest: /home/rbckuser/Downloads/rubackup-server.deb
+rbm_dest: /home/rbckuser/Downloads/rubackup-rbm.deb
+hba_dest: /etc/postgresql/12/main/pg_hba.conf
+listen_dest: /etc/postgresql/12/main/postgresql.conf

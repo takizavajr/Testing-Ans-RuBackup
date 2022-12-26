@@ -1,0 +1,2 @@
+client_service: /opt/rubackup/etc/systemd/system/rubackup_client.service
+server_service: /opt/rubackup/etc/systemd/system/rubackup_server.service
